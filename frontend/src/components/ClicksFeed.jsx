@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Monitor, Smartphone, Tablet, Bot, Globe, Shield } from 'lucide-react';
+import { Activity, Monitor, Smartphone, Tablet, Bot, Globe } from 'lucide-react';
 import { timeAgo } from '../utils/helpers';
 
 export default function ClicksFeed({ recentClicks = [] }) {

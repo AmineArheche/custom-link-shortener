@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
 import { 
   Search, Copy, Check, QrCode, BarChart3, ExternalLink, 
-  Trash2, Power, Eye, Tag, Calendar, ShieldAlert 
+  Trash2, Power, Download, Clock, AlertTriangle
 } from 'lucide-react';
 import { copyTextToClipboard, truncateUrl, formatDate, timeAgo } from '../utils/helpers';
-import { updateShortLink, deleteShortLink } from '../services/api';
+import { updateShortLink, deleteShortLink, downloadLinksCsv, cleanupExpiredLinks } from '../services/api';
 
 export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'disabled' | 'expired'
+  const [sortBy, setSortBy] = useState('created_desc'); // 'created_desc' | 'created_asc' | 'clicks_desc' | 'title_asc'
   const [copiedId, setCopiedId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [isCleaningExpired, setIsCleaningExpired] = useState(false);
 
   // Extract all unique tags
   const allTags = Array.from(
     new Set(links.flatMap((link) => link.tags || []))
   );
 
+  const now = new Date();
+
+  // Filter links
   const filteredLinks = links.filter((link) => {
     const matchesSearch =
       link.short_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -26,7 +32,30 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
     const matchesTag =
       selectedTag === 'all' || (link.tags && link.tags.includes(selectedTag));
 
-    return matchesSearch && matchesTag;
+    const isExpired = link.expires_at && new Date(link.expires_at) <= now;
+    let matchesStatus = true;
+    if (statusFilter === 'active') matchesStatus = link.is_active && !isExpired;
+    else if (statusFilter === 'disabled') matchesStatus = !link.is_active;
+    else if (statusFilter === 'expired') matchesStatus = isExpired;
+
+    return matchesSearch && matchesTag && matchesStatus;
+  });
+
+  // Sort links
+  const sortedLinks = [...filteredLinks].sort((a, b) => {
+    if (sortBy === 'created_asc') {
+      return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+    }
+    if (sortBy === 'clicks_desc') {
+      return (b.clicks_count || 0) - (a.clicks_count || 0);
+    }
+    if (sortBy === 'title_asc') {
+      const titleA = (a.title || a.short_code).toLowerCase();
+      const titleB = (b.title || b.short_code).toLowerCase();
+      return titleA.localeCompare(titleB);
+    }
+    // Default created_desc
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   });
 
   const handleCopy = (id, url) => {
@@ -38,24 +67,38 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
   const handleToggleActive = async (link) => {
     try {
       await updateShortLink(link.id, { is_active: !link.is_active });
-      onRefresh && onRefresh();
+      if (onRefresh) onRefresh();
     } catch (err) {
       alert(err.message);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this short link and its analytics?')) {
+    if (!window.confirm('Are you sure you want to delete this short link and its telemetry?')) {
       return;
     }
     setDeletingId(id);
     try {
       await deleteShortLink(id);
-      onRefresh && onRefresh();
+      if (onRefresh) onRefresh();
     } catch (err) {
       alert(err.message);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleCleanupExpired = async () => {
+    if (!window.confirm('Deactivate all links whose expiration timestamp has passed?')) return;
+    setIsCleaningExpired(true);
+    try {
+      const res = await cleanupExpiredLinks();
+      alert(res.message);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsCleaningExpired(false);
     }
   };
 
@@ -72,28 +115,91 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
       }}>
         <div>
           <h3 style={{ fontSize: 20, fontWeight: 700 }}>
-            Active Shortened Links ({filteredLinks.length})
+            Shortened Links Registry ({sortedLinks.length})
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            Manage redirects, monitor clicks, and inspect real-time traffic
+            Manage routing redirects, filter telemetry, and export link data
           </p>
         </div>
 
+        {/* Global Action Buttons */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={downloadLinksCsv}
+            className="btn btn-secondary btn-sm"
+            title="Download CSV report of all links"
+          >
+            <Download size={14} />
+            <span>Export CSV</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCleanupExpired}
+            disabled={isCleaningExpired}
+            className="btn btn-ghost btn-sm"
+            title="Deactivate past expiration links"
+            style={{ color: '#fb7185' }}
+          >
+            <Clock size={14} />
+            <span>Clean Expired</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 12,
+        marginBottom: 16,
+      }}>
         {/* Search Input */}
-        <div style={{ position: 'relative', width: 280 }}>
+        <div style={{ position: 'relative' }}>
           <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
           <input
             type="text"
             className="form-input"
             style={{ paddingLeft: 36, paddingRight: 12, paddingTop: 8, paddingBottom: 8, fontSize: 13 }}
-            placeholder="Search links or destination..."
+            placeholder="Search title, alias, or URL..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        {/* Status Filter */}
+        <div style={{ position: 'relative' }}>
+          <select
+            className="form-input"
+            style={{ paddingTop: 8, paddingBottom: 8, fontSize: 13, cursor: 'pointer' }}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            <option value="active">Active Only</option>
+            <option value="disabled">Disabled Only</option>
+            <option value="expired">Expired Only</option>
+          </select>
+        </div>
+
+        {/* Sort Dropdown */}
+        <div style={{ position: 'relative' }}>
+          <select
+            className="form-input"
+            style={{ paddingTop: 8, paddingBottom: 8, fontSize: 13, cursor: 'pointer' }}
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="created_desc">Newest First</option>
+            <option value="created_asc">Oldest First</option>
+            <option value="clicks_desc">Most Clicks First</option>
+            <option value="title_asc">Title (A to Z)</option>
+          </select>
+        </div>
       </div>
 
-      {/* Tag Filters */}
+      {/* Tag Filter Pills */}
       {allTags.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
           <button
@@ -116,8 +222,8 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
         </div>
       )}
 
-      {/* Links List */}
-      {filteredLinks.length === 0 ? (
+      {/* Links List View */}
+      {sortedLinks.length === 0 ? (
         <div style={{
           textAlign: 'center',
           padding: '48px 20px',
@@ -126,14 +232,14 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
           borderRadius: 'var(--radius-md)',
           border: '1px dashed var(--border-subtle)'
         }}>
-          <Link2 size={36} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
-          <p style={{ fontSize: 15, fontWeight: 500 }}>No shortened links found</p>
-          <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>Try changing your search query or create a new link above.</p>
+          <AlertTriangle size={36} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
+          <p style={{ fontSize: 15, fontWeight: 500 }}>No shortened links match your filters</p>
+          <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>Try adjusting your search criteria or create a new link above.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filteredLinks.map((link) => {
-            const isExpired = link.expires_at && new Date() > new Date(link.expires_at);
+          {sortedLinks.map((link) => {
+            const isExpired = link.expires_at && new Date(link.expires_at) <= now;
             return (
               <div
                 key={link.id}
@@ -208,14 +314,14 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
                         display: 'flex',
                         alignItems: 'center',
                         gap: 4,
-                        maxWidth: 260,
+                        maxWidth: 280,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
                       }}
                       title={link.original_url}
                     >
-                      <span>{truncateUrl(link.original_url, 35)}</span>
+                      <span>{truncateUrl(link.original_url, 38)}</span>
                       <ExternalLink size={12} />
                     </a>
                   </div>
@@ -226,7 +332,7 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
                   </div>
                 </div>
 
-                {/* Right Metrics & Quick Actions */}
+                {/* Right Metrics & Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {/* Click Count Badge */}
                   <div style={{

@@ -20,7 +20,6 @@ export default function App() {
   // Load core data from FastAPI backend
   const loadData = useCallback(async (showIndicator = false) => {
     if (showIndicator) setIsRefreshing(true);
-    setErrorMessage(null);
     try {
       const [overviewRes, linksRes] = await Promise.all([
         fetchOverview(),
@@ -28,6 +27,7 @@ export default function App() {
       ]);
       setOverviewData(overviewRes);
       setLinks(linksRes.items || []);
+      setErrorMessage(null);
 
       // If viewing a specific link, refresh its detailed analytics too
       if (selectedLinkCode) {
@@ -43,12 +43,21 @@ export default function App() {
   }, [selectedLinkCode]);
 
   useEffect(() => {
-    loadData();
+    let isMounted = true;
+    const execute = async () => {
+      if (isMounted) await loadData(false);
+    };
+    execute();
+
     // Auto-refresh analytics every 10 seconds
     const interval = setInterval(() => {
-      loadData(false);
+      if (isMounted) loadData(false);
     }, 10000);
-    return () => clearInterval(interval);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [loadData]);
 
   // Handle drill down to specific link analytics

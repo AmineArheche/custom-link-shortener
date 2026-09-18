@@ -1,10 +1,13 @@
+import csv
 import datetime
 import html
+import io
 import re
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, BackgroundTasks, Query
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
 from typing import List, Optional
 
 from app.config import settings
@@ -16,7 +19,11 @@ from app.schemas import (
     ShortLinkResponse,
     AnalyticsOverview,
     LinkDetailedAnalytics,
-    SimulateClickRequest
+    SimulateClickRequest,
+    BulkShortenRequest,
+    BulkShortenResponse,
+    BulkShortenResultItem,
+    ExpiredCleanupResponse
 )
 from app.services.shortener import generate_unique_short_code, fetch_page_title
 from app.services.user_agent import parse_request_headers
@@ -28,7 +35,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title=settings.APP_NAME,
     description="High-performance URL Shortener with real-time browser, device, and referrer analytics",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # 1. Security Headers Middleware
@@ -137,16 +144,85 @@ async def create_short_link(
 
     return format_link_response(short_link)
 
+@app.post("/api/links/bulk", response_model=BulkShortenResponse, status_code=status.HTTP_200_OK)
+async def bulk_create_short_links(
+    payload: BulkShortenRequest,
+    db: Session = Depends(get_db)
+):
+    """Creates multiple shortened URLs in batch with isolated item validation."""
+    results = []
+    success_count = 0
+    failed_count = 0
+
+    for item in payload.items:
+        try:
+            short_code = item.custom_alias
+            if short_code:
+                existing = db.query(ShortLink).filter(ShortLink.short_code == short_code).first()
+                if existing:
+                    results.append(BulkShortenResultItem(
+                        success=False,
+                        original_url=item.original_url,
+                        error=f"Alias '{short_code}' is already in use"
+                    ))
+                    failed_count += 1
+                    continue
+            else:
+                short_code = generate_unique_short_code(db, length=settings.SHORT_CODE_LENGTH)
+
+            title = item.title or item.original_url
+            tags_str = ",".join(item.tags) if item.tags else ""
+
+            short_link = ShortLink(
+                original_url=item.original_url,
+                short_code=short_code,
+                title=title,
+                tags=tags_str,
+                expires_at=item.expires_at,
+                is_active=True,
+                clicks_count=0
+            )
+            db.add(short_link)
+            db.commit()
+            db.refresh(short_link)
+
+            success_count += 1
+            results.append(BulkShortenResultItem(
+                success=True,
+                original_url=item.original_url,
+                short_code=short_code,
+                short_url=f"{settings.BASE_URL}/r/{short_code}"
+            ))
+        except Exception as e:
+            db.rollback()
+            failed_count += 1
+            results.append(BulkShortenResultItem(
+                success=False,
+                original_url=item.original_url,
+                error=str(e)
+            ))
+
+    return BulkShortenResponse(
+        total_requested=len(payload.items),
+        total_success=success_count,
+        total_failed=failed_count,
+        results=results
+    )
+
 @app.get("/api/links")
 def list_links(
     query: Optional[str] = Query(None, description="Search by title, code, or URL", max_length=100),
     tag: Optional[str] = Query(None, description="Filter by tag", max_length=50),
-    limit: int = Query(50, ge=1, le=100),
+    status_filter: Optional[str] = Query("all", description="Filter by status (all, active, disabled, expired)"),
+    sort_by: Optional[str] = Query("created_desc", description="Sort order (created_desc, created_asc, clicks_desc, title_asc)"),
+    limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
-    """Lists shortened links with search and tag filtering (sanitized against wildcard DoS)."""
+    """Lists shortened links with search, tag filtering, lifecycle status, and sorting."""
+    now = utcnow()
     q = db.query(ShortLink)
+
     if query:
         escaped_query = escape_like_pattern(query.strip())
         term = f"%{escaped_query}%"
@@ -159,13 +235,109 @@ def list_links(
         escaped_tag = escape_like_pattern(tag.strip())
         q = q.filter(ShortLink.tags.ilike(f"%{escaped_tag}%", escape='\\'))
 
+    # Status filter
+    if status_filter == "active":
+        q = q.filter(ShortLink.is_active == True, (ShortLink.expires_at == None) | (ShortLink.expires_at > now))
+    elif status_filter == "disabled":
+        q = q.filter(ShortLink.is_active == False)
+    elif status_filter == "expired":
+        q = q.filter(ShortLink.expires_at != None, ShortLink.expires_at <= now)
+
+    # Sorting
+    if sort_by == "created_asc":
+        q = q.order_by(ShortLink.created_at.asc())
+    elif sort_by == "clicks_desc":
+        q = q.order_by(ShortLink.clicks_count.desc(), ShortLink.created_at.desc())
+    elif sort_by == "title_asc":
+        q = q.order_by(ShortLink.title.asc())
+    else:
+        q = q.order_by(ShortLink.created_at.desc())
+
     total = q.count()
-    links = q.order_by(ShortLink.created_at.desc()).offset(offset).limit(limit).all()
+    links = q.offset(offset).limit(limit).all()
 
     return {
         "total": total,
         "items": [format_link_response(link) for link in links]
     }
+
+@app.get("/api/links/export/csv")
+def export_links_csv(db: Session = Depends(get_db)):
+    """Exports all shortened link records in CSV format."""
+    links = db.query(ShortLink).order_by(ShortLink.created_at.desc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Short Code", "Short URL", "Original URL", "Title", "Tags", "Clicks", "Is Active", "Created At", "Expires At"])
+    
+    for l in links:
+        writer.writerow([
+            l.id,
+            l.short_code,
+            f"{settings.BASE_URL}/r/{l.short_code}",
+            l.original_url,
+            l.title or "",
+            l.tags or "",
+            l.clicks_count or 0,
+            "Yes" if l.is_active else "No",
+            l.created_at.isoformat() if l.created_at else "",
+            l.expires_at.isoformat() if l.expires_at else ""
+        ])
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=auralink_links_export.csv"}
+    )
+
+@app.get("/api/analytics/export/csv")
+def export_analytics_csv(db: Session = Depends(get_db)):
+    """Exports all click telemetry events in CSV format."""
+    events = db.query(ClickEvent).order_by(ClickEvent.timestamp.desc()).limit(5000).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Event ID", "Link ID", "Timestamp (UTC)", "Browser", "Version", "OS", "Device", "Referrer Domain", "Full Referrer", "Country", "City", "IP Address"])
+    
+    for e in events:
+        writer.writerow([
+            e.id,
+            e.link_id,
+            e.timestamp.isoformat() if e.timestamp else "",
+            e.browser or "Unknown",
+            e.browser_version or "",
+            e.os or "Unknown",
+            e.device_type or "Desktop",
+            e.referrer_domain or "Direct",
+            e.referrer or "Direct",
+            e.country or "Global",
+            e.city or "Unknown",
+            e.ip_address or ""
+        ])
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=auralink_telemetry_export.csv"}
+    )
+
+@app.post("/api/links/cleanup-expired", response_model=ExpiredCleanupResponse)
+def cleanup_expired_links(db: Session = Depends(get_db)):
+    """Deactivates all links whose expiration timestamp has passed."""
+    now = utcnow()
+    expired_links = db.query(ShortLink).filter(
+        ShortLink.expires_at != None,
+        ShortLink.expires_at <= now,
+        ShortLink.is_active == True
+    ).all()
+
+    count = len(expired_links)
+    for l in expired_links:
+        l.is_active = False
+
+    db.commit()
+    return ExpiredCleanupResponse(
+        cleaned_count=count,
+        message=f"Successfully deactivated {count} expired link(s)"
+    )
 
 @app.get("/api/links/{id_or_code}")
 def get_link(id_or_code: str, db: Session = Depends(get_db)):
@@ -208,6 +380,7 @@ def delete_link(link_id: int, db: Session = Depends(get_db)):
     db.delete(link)
     db.commit()
     return None
+
 
 # ----------------- ANALYTICS ENDPOINTS ----------------- #
 

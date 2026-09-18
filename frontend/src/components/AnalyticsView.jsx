@@ -15,10 +15,10 @@ import {
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import { 
   MousePointerClick, Compass, Laptop, Globe2, 
-  Layers, ArrowUpRight, TrendingUp, X, Filter
+  TrendingUp, X, Download
 } from 'lucide-react';
 import ClicksFeed from './ClicksFeed';
-import { BROWSER_COLORS, DEVICE_COLORS } from '../utils/helpers';
+import { downloadAnalyticsCsv } from '../services/api';
 
 // Register Chart.js components
 ChartJS.register(
@@ -36,9 +36,7 @@ ChartJS.register(
 
 export default function AnalyticsView({
   analyticsData,
-  selectedLinkCode,
-  onClearSelectedLink,
-  allLinks = []
+  onClearSelectedLink
 }) {
   if (!analyticsData) {
     return (
@@ -51,14 +49,12 @@ export default function AnalyticsView({
   const {
     total_clicks = 0,
     total_links = 0,
-    unique_referrers = 0,
     top_browser = 'N/A',
     top_os = 'N/A',
     top_device = 'N/A',
     top_referrer = 'N/A',
     clicks_timeline = [],
     browsers = [],
-    operating_systems = [],
     device_types = [],
     top_referrers = [],
     recent_clicks = [],
@@ -185,6 +181,34 @@ export default function AnalyticsView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header bar with Export */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 12,
+      }}>
+        <div>
+          <h3 style={{ fontSize: 20, fontWeight: 700 }}>
+            {link ? `Telemetry for /r/${link.short_code}` : 'Global Performance & Telemetry Hub'}
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            Real-time analytics across browsers, platforms, devices, and traffic channels
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={downloadAnalyticsCsv}
+          className="btn btn-secondary btn-sm"
+          title="Download full visitor telemetry log in CSV"
+        >
+          <Download size={14} />
+          <span>Export Telemetry CSV</span>
+        </button>
+      </div>
+
       {/* Link Filter Banner if specific link is selected */}
       {link && (
         <div className="glass-panel" style={{

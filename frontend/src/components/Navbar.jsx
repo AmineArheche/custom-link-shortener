@@ -1,7 +1,7 @@
 import React from 'react';
-import { Link2, BarChart3, PlusCircle, Zap, Activity, RefreshCw } from 'lucide-react';
+import { Link2, BarChart3, Zap, RefreshCw } from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab, isLive, onRefresh, isRefreshing }) {
+export default function Navbar({ activeTab, setActiveTab, onRefresh, isRefreshing }) {
   return (
     <header style={{
       borderBottom: '1px solid var(--border-subtle)',

@@ -185,3 +185,37 @@ class SimulateClickRequest(BaseModel):
     device_type: Optional[str] = None
     referrer: Optional[str] = None
     country: Optional[str] = None
+
+class UTMParameters(BaseModel):
+    utm_source: Optional[str] = Field(None, max_length=100)
+    utm_medium: Optional[str] = Field(None, max_length=100)
+    utm_campaign: Optional[str] = Field(None, max_length=100)
+    utm_term: Optional[str] = Field(None, max_length=100)
+    utm_content: Optional[str] = Field(None, max_length=100)
+
+class BulkShortenItem(BaseModel):
+    original_url: str
+    custom_alias: Optional[str] = None
+    title: Optional[str] = None
+    tags: Optional[List[str]] = []
+
+class BulkShortenRequest(BaseModel):
+    items: List[ShortenRequest] = Field(..., max_length=50, description="List of links to shorten (up to 50 items)")
+
+class BulkShortenResultItem(BaseModel):
+    success: bool
+    original_url: str
+    short_code: Optional[str] = None
+    short_url: Optional[str] = None
+    error: Optional[str] = None
+
+class BulkShortenResponse(BaseModel):
+    total_requested: int
+    total_success: int
+    total_failed: int
+    results: List[BulkShortenResultItem]
+
+class ExpiredCleanupResponse(BaseModel):
+    cleaned_count: int
+    message: str
+

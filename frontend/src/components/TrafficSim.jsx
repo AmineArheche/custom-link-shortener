@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, Play, CheckCircle2, Sliders, Sparkles, RefreshCw } from 'lucide-react';
+import { Zap, Play, CheckCircle2, RefreshCw } from 'lucide-react';
 import { simulateTraffic } from '../services/api';
 
 export default function TrafficSim({ links = [], onTrafficSimulated }) {
@@ -27,7 +27,9 @@ export default function TrafficSim({ links = [], onTrafficSimulated }) {
 
       const res = await simulateTraffic(payload);
       setResultMessage(res.message);
-      onTrafficSimulated && onTrafficSimulated();
+      if (onTrafficSimulated) {
+        onTrafficSimulated();
+      }
     } catch (err) {
       alert(err.message || 'Simulation failed');
     } finally {

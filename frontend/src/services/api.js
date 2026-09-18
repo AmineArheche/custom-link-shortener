@@ -6,10 +6,12 @@ export async function fetchOverview() {
   return res.json();
 }
 
-export async function fetchLinks({ query = '', tag = '', limit = 50 } = {}) {
+export async function fetchLinks({ query = '', tag = '', status_filter = 'all', sort_by = 'created_desc', limit = 50 } = {}) {
   const params = new URLSearchParams();
   if (query) params.append('query', query);
   if (tag) params.append('tag', tag);
+  if (status_filter) params.append('status_filter', status_filter);
+  if (sort_by) params.append('sort_by', sort_by);
   if (limit) params.append('limit', limit);
 
   const res = await fetch(`${BASE_API}/links?${params.toString()}`);
@@ -26,6 +28,19 @@ export async function createShortLink(data) {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Failed to create short link');
+  }
+  return res.json();
+}
+
+export async function bulkCreateShortLinks(items) {
+  const res = await fetch(`${BASE_API}/links/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to execute bulk link creation');
   }
   return res.json();
 }
@@ -51,6 +66,14 @@ export async function deleteShortLink(id) {
   return true;
 }
 
+export async function cleanupExpiredLinks() {
+  const res = await fetch(`${BASE_API}/links/cleanup-expired`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to clean up expired links');
+  return res.json();
+}
+
 export async function fetchLinkAnalytics(idOrCode) {
   const res = await fetch(`${BASE_API}/analytics/links/${idOrCode}`);
   if (!res.ok) {
@@ -73,6 +96,14 @@ export async function simulateTraffic(payload) {
   return res.json();
 }
 
+export function downloadLinksCsv() {
+  window.open(`${BASE_API}/links/export/csv`, '_blank');
+}
+
+export function downloadAnalyticsCsv() {
+  window.open(`${BASE_API}/analytics/export/csv`, '_blank');
+}
+
 export async function checkBackendHealth() {
   try {
     const res = await fetch(`${BASE_API}/health`);
@@ -81,3 +112,4 @@ export async function checkBackendHealth() {
     return false;
   }
 }
+
