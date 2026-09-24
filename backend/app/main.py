@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from app.config import settings
 from app.database import engine, Base, get_db
-from app.models import ShortLink, ClickEvent, utcnow
+from app.models import ShortLink, ClickEvent, DevTask, utcnow
 from app.schemas import (
     ShortenRequest,
     ShortenUpdate,
@@ -23,7 +23,11 @@ from app.schemas import (
     BulkShortenRequest,
     BulkShortenResponse,
     BulkShortenResultItem,
-    ExpiredCleanupResponse
+    ExpiredCleanupResponse,
+    DevTaskCreate,
+    DevTaskUpdate,
+    DevTaskResponse,
+    DevTaskListResponse
 )
 from app.services.shortener import generate_unique_short_code, fetch_page_title
 from app.services.user_agent import parse_request_headers
@@ -465,6 +469,178 @@ def simulate_traffic(
 
     db.commit()
     return {"message": f"Successfully simulated {payload.count} clicks for '{link.short_code}'", "total_clicks": link.clicks_count}
+
+# ----------------- CONTRIBUTOR & DEV TASKS ----------------- #
+
+DEFAULT_DEV_TASKS = [
+    {
+        "title": "Geo-IP Country and City Telemetry Map",
+        "description": "Integrate MaxMind GeoLite2 or IP-API to render a high-resolution world heatmap of visitor geolocations in dashboard.",
+        "category": "feature",
+        "difficulty": "medium",
+        "points": 25,
+    },
+    {
+        "title": "Sub-Millisecond Redis Caching Layer",
+        "description": "Implement Redis cache for high-frequency short link lookups to achieve sub-millisecond redirect response latency.",
+        "category": "performance",
+        "difficulty": "advanced",
+        "points": 35,
+    },
+    {
+        "title": "Password-Protected Short URL Redirection",
+        "description": "Add optional bcrypt password hashing to short links with an interactive PIN entry unlock screen before redirect.",
+        "category": "security",
+        "difficulty": "medium",
+        "points": 20,
+    },
+    {
+        "title": "Webhook Event Notification Dispatcher",
+        "description": "Broadcast real-time HTTP Webhook POST notifications to Slack, Discord, or custom server endpoints whenever a link is clicked.",
+        "category": "feature",
+        "difficulty": "advanced",
+        "points": 30,
+    },
+    {
+        "title": "Docker Multi-Stage Optimization with Alpine",
+        "description": "Refactor Dockerfile to use multi-stage builds and Alpine base to minimize final container image footprint under 80MB.",
+        "category": "devops",
+        "difficulty": "good-first-issue",
+        "points": 15,
+    },
+    {
+        "title": "Automated OWASP Security Audit CI/CD Workflow",
+        "description": "Add GitHub Actions workflow running automated Bandit, Safety, and OWASP ZAP security checks on every pull request.",
+        "category": "security",
+        "difficulty": "medium",
+        "points": 25,
+    },
+    {
+        "title": "Interactive OpenAPI Client SDK Generators",
+        "description": "Provide auto-generated Python (httpx) and TypeScript (axios/fetch) SDK packages from the OpenAPI 3.1 specification.",
+        "category": "docs",
+        "difficulty": "good-first-issue",
+        "points": 15,
+    },
+    {
+        "title": "A/B Split URL Traffic Weight Testing Engine",
+        "description": "Support multiple destination URLs per short code with customizable percentage traffic distribution weighting.",
+        "category": "feature",
+        "difficulty": "advanced",
+        "points": 35,
+    },
+    {
+        "title": "Rate Limiting IP Whitelist & Token Bucket",
+        "description": "Add sliding-window token bucket rate limiter with configurable IP whitelists and custom tier headers.",
+        "category": "security",
+        "difficulty": "medium",
+        "points": 20,
+    },
+    {
+        "title": "Custom Domain CNAME Mapping & SSL Auto-Cert",
+        "description": "Support custom organization domains (e.g. go.brand.com) mapped via CNAME with automatic Let's Encrypt SSL.",
+        "category": "devops",
+        "difficulty": "advanced",
+        "points": 40,
+    },
+]
+
+@app.get("/api/tasks", response_model=DevTaskListResponse)
+def get_tasks(
+    category: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """List developer contribution tasks and roadmap items"""
+    # Seed default tasks if empty
+    task_count = db.query(DevTask).count()
+    if task_count == 0:
+        for t in DEFAULT_DEV_TASKS:
+            db_task = DevTask(
+                title=t["title"],
+                description=t["description"],
+                category=t["category"],
+                difficulty=t["difficulty"],
+                points=t["points"],
+                status="todo"
+            )
+            db.add(db_task)
+        db.commit()
+
+    query = db.query(DevTask)
+    if category and category != "all":
+        query = query.filter(DevTask.category == category)
+    if difficulty and difficulty != "all":
+        query = query.filter(DevTask.difficulty == difficulty)
+    if status_filter and status_filter != "all":
+        query = query.filter(DevTask.status == status_filter)
+
+    all_tasks = db.query(DevTask).all()
+    completed_tasks = [t for t in all_tasks if t.status == "completed"]
+    total_points = sum(t.points for t in completed_tasks)
+
+    items = query.order_by(DevTask.id.asc()).all()
+    return {
+        "total": len(all_tasks),
+        "completed_count": len(completed_tasks),
+        "total_points_earned": total_points,
+        "items": items
+    }
+
+@app.post("/api/tasks", response_model=DevTaskResponse, status_code=status.HTTP_201_CREATED)
+def create_task(payload: DevTaskCreate, db: Session = Depends(get_db)):
+    """Create a new developer task or open source milestone"""
+    task = DevTask(
+        title=payload.title.strip(),
+        description=payload.description.strip() if payload.description else None,
+        category=payload.category,
+        difficulty=payload.difficulty,
+        points=payload.points or 10,
+        status="todo"
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+@app.patch("/api/tasks/{task_id}", response_model=DevTaskResponse)
+def update_task(task_id: int, payload: DevTaskUpdate, db: Session = Depends(get_db)):
+    """Update a developer task status, category, or difficulty"""
+    task = db.query(DevTask).filter(DevTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if payload.title is not None:
+        task.title = payload.title.strip()
+    if payload.description is not None:
+        task.description = payload.description.strip()
+    if payload.category is not None:
+        task.category = payload.category
+    if payload.difficulty is not None:
+        task.difficulty = payload.difficulty
+    if payload.points is not None:
+        task.points = payload.points
+    if payload.status is not None:
+        task.status = payload.status
+        if payload.status == "completed":
+            task.completed_at = utcnow()
+        else:
+            task.completed_at = None
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+@app.delete("/api/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """Delete a developer task"""
+    task = db.query(DevTask).filter(DevTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(task)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # ----------------- REDIRECTION ENGINE ----------------- #
 

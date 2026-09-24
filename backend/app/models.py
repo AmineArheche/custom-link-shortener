@@ -70,3 +70,29 @@ class ClickEvent(Base):
             "city": self.city,
             "user_agent": self.user_agent,
         }
+
+class DevTask(Base):
+    __tablename__ = "dev_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(64), default="feature") # feature, security, performance, docs, devops
+    difficulty = Column(String(32), default="medium") # good-first-issue, medium, advanced
+    status = Column(String(32), default="todo") # todo, in_progress, completed
+    points = Column(Integer, default=10)
+    created_at = Column(DateTime, default=utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "category": self.category,
+            "difficulty": self.difficulty,
+            "status": self.status,
+            "points": self.points,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }

@@ -113,3 +113,48 @@ export async function checkBackendHealth() {
   }
 }
 
+export async function fetchTasks({ category = '', difficulty = '', status_filter = '' } = {}) {
+  const params = new URLSearchParams();
+  if (category && category !== 'all') params.append('category', category);
+  if (difficulty && difficulty !== 'all') params.append('difficulty', difficulty);
+  if (status_filter && status_filter !== 'all') params.append('status_filter', status_filter);
+
+  const res = await fetch(`${BASE_API}/tasks?${params.toString()}`);
+  if (!res.ok) throw new Error('Failed to fetch developer tasks');
+  return res.json();
+}
+
+export async function createDevTask(data) {
+  const res = await fetch(`${BASE_API}/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create task');
+  }
+  return res.json();
+}
+
+export async function updateDevTask(id, data) {
+  const res = await fetch(`${BASE_API}/tasks/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to update task');
+  }
+  return res.json();
+}
+
+export async function deleteDevTask(id) {
+  const res = await fetch(`${BASE_API}/tasks/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete task');
+  return true;
+}
+

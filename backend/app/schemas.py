@@ -219,3 +219,37 @@ class ExpiredCleanupResponse(BaseModel):
     cleaned_count: int
     message: str
 
+class DevTaskCreate(BaseModel):
+    title: str = Field(..., min_length=3, max_length=255)
+    description: Optional[str] = None
+    category: Optional[str] = Field("feature", pattern="^(feature|security|performance|docs|devops)$")
+    difficulty: Optional[str] = Field("medium", pattern="^(good-first-issue|medium|advanced)$")
+    points: Optional[int] = Field(10, ge=5, le=100)
+
+class DevTaskUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=3, max_length=255)
+    description: Optional[str] = None
+    category: Optional[str] = None
+    difficulty: Optional[str] = None
+    status: Optional[str] = Field(None, pattern="^(todo|in_progress|completed)$")
+    points: Optional[int] = None
+
+class DevTaskResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    category: str
+    difficulty: str
+    status: str
+    points: int
+    created_at: Optional[datetime.datetime]
+    completed_at: Optional[datetime.datetime]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class DevTaskListResponse(BaseModel):
+    total: int
+    completed_count: int
+    total_points_earned: int
+    items: List[DevTaskResponse]
+

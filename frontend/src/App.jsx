@@ -5,12 +5,13 @@ import LinkList from './components/LinkList';
 import AnalyticsView from './components/AnalyticsView';
 import TrafficSim from './components/TrafficSim';
 import QRCodeModal from './components/QRCodeModal';
+import GitHubTaskHub from './components/GitHubTaskHub';
 import Footer from './components/Footer';
 import { fetchOverview, fetchLinks, fetchLinkAnalytics } from './services/api';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'links' | 'simulator'
+  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'links' | 'tasks' | 'simulator'
   const [overviewData, setOverviewData] = useState(null);
   const [links, setLinks] = useState([]);
   const [selectedLinkCode, setSelectedLinkCode] = useState(null);
@@ -142,13 +143,15 @@ export default function App() {
 
         {/* Dynamic Tab Views */}
         {activeTab === 'analytics' && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             <AnalyticsView
               analyticsData={selectedLinkCode ? singleLinkAnalytics : overviewData}
               selectedLinkCode={selectedLinkCode}
               onClearSelectedLink={handleClearSelectedLink}
               allLinks={links}
             />
+            {/* Quick Contributor Task Section in Analytics Hub */}
+            <GitHubTaskHub />
           </div>
         )}
 
@@ -160,6 +163,12 @@ export default function App() {
               onSelectAnalytics={handleSelectAnalytics}
               onOpenQR={(link) => setSelectedQRLink(link)}
             />
+          </div>
+        )}
+
+        {activeTab === 'tasks' && (
+          <div className="animate-fade-in">
+            <GitHubTaskHub />
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link2, BarChart3, Zap, RefreshCw, Sparkles } from 'lucide-react';
+import { Link2, BarChart3, Zap, RefreshCw, Sparkles, CheckSquare } from 'lucide-react';
 
 function GithubIcon({ size = 16, color = 'currentColor' }) {
   return (
@@ -77,6 +77,7 @@ export default function Navbar({ activeTab, setActiveTab, onRefresh, isRefreshin
           borderRadius: 14,
           border: '1px solid var(--border-subtle)',
           boxShadow: 'inset 0 1px 4px rgba(0, 0, 0, 0.3)',
+          flexWrap: 'wrap',
         }}>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -87,11 +88,11 @@ export default function Navbar({ activeTab, setActiveTab, onRefresh, isRefreshin
               borderRadius: 10,
               border: activeTab === 'analytics' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid transparent',
               boxShadow: activeTab === 'analytics' ? '0 4px 15px rgba(99, 102, 241, 0.4)' : 'none',
-              padding: '8px 16px',
+              padding: '7px 14px',
               fontWeight: 600,
             }}
           >
-            <BarChart3 size={16} />
+            <BarChart3 size={15} />
             <span>Analytics Hub</span>
           </button>
 
@@ -104,29 +105,46 @@ export default function Navbar({ activeTab, setActiveTab, onRefresh, isRefreshin
               borderRadius: 10,
               border: activeTab === 'links' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid transparent',
               boxShadow: activeTab === 'links' ? '0 4px 15px rgba(99, 102, 241, 0.4)' : 'none',
-              padding: '8px 16px',
+              padding: '7px 14px',
               fontWeight: 600,
             }}
           >
-            <Link2 size={16} />
+            <Link2 size={15} />
             <span>Manage Links</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className="btn btn-sm"
+            style={{
+              background: activeTab === 'tasks' ? 'var(--gradient-emerald)' : 'transparent',
+              color: activeTab === 'tasks' ? '#fff' : 'var(--text-muted)',
+              borderRadius: 10,
+              border: activeTab === 'tasks' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid transparent',
+              boxShadow: activeTab === 'tasks' ? '0 4px 15px rgba(16, 185, 129, 0.4)' : 'none',
+              padding: '7px 14px',
+              fontWeight: 600,
+            }}
+          >
+            <CheckSquare size={15} color={activeTab === 'tasks' ? '#fff' : '#10b981'} />
+            <span>Tasks & GitHub</span>
           </button>
 
           <button
             onClick={() => setActiveTab('simulator')}
             className="btn btn-sm"
             style={{
-              background: activeTab === 'simulator' ? 'var(--gradient-primary)' : 'transparent',
+              background: activeTab === 'simulator' ? 'var(--gradient-amber)' : 'transparent',
               color: activeTab === 'simulator' ? '#fff' : 'var(--text-muted)',
               borderRadius: 10,
               border: activeTab === 'simulator' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid transparent',
-              boxShadow: activeTab === 'simulator' ? '0 4px 15px rgba(99, 102, 241, 0.4)' : 'none',
-              padding: '8px 16px',
+              boxShadow: activeTab === 'simulator' ? '0 4px 15px rgba(245, 158, 11, 0.4)' : 'none',
+              padding: '7px 14px',
               fontWeight: 600,
             }}
           >
-            <Zap size={16} />
-            <span>Traffic Simulator</span>
+            <Zap size={15} />
+            <span>Traffic Sim</span>
           </button>
         </nav>
 
