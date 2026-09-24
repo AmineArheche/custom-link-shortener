@@ -189,7 +189,10 @@ export default function App() {
       )}
 
       {/* Modern Footer */}
-      <Footer />
+      <Footer onSelectTab={(tab) => {
+        setActiveTab(tab);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }} />
     </div>
   );
 }
