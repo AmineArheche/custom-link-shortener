@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Search, Copy, Check, QrCode, BarChart3, ExternalLink, 
-  Trash2, Power, Download, Clock, AlertTriangle
+  Trash2, Power, Download, Clock, AlertTriangle, X, Filter, ArrowUpDown
 } from 'lucide-react';
 import { copyTextToClipboard, truncateUrl, formatDate, timeAgo } from '../utils/helpers';
 import { updateShortLink, deleteShortLink, downloadLinksCsv, cleanupExpiredLinks } from '../services/api';
@@ -74,7 +74,7 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this short link and its telemetry?')) {
+    if (!window.confirm('Are you sure you want to delete this short link and all its telemetry history?')) {
       return;
     }
     setDeletingId(id);
@@ -103,7 +103,7 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '24px 28px' }}>
+    <div className="glass-panel" style={{ padding: '28px 32px' }}>
       {/* Header Controls */}
       <div style={{
         display: 'flex',
@@ -111,14 +111,17 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: 16,
-        marginBottom: 20
+        marginBottom: 22
       }}>
         <div>
-          <h3 style={{ fontSize: 20, fontWeight: 700 }}>
-            Shortened Links Registry ({sortedLinks.length})
+          <h3 style={{ fontSize: 22, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>Shortened Links Registry</span>
+            <span className="badge badge-indigo" style={{ fontSize: 13, padding: '3px 10px' }}>
+              {sortedLinks.length} {sortedLinks.length === 1 ? 'Link' : 'Links'}
+            </span>
           </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            Manage routing redirects, filter telemetry, and export link data
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+            Manage routing redirects, filter telemetry, and export dataset
           </p>
         </div>
 
@@ -151,28 +154,46 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
       {/* Search & Filter Bar */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
         gap: 12,
-        marginBottom: 16,
+        marginBottom: 18,
       }}>
         {/* Search Input */}
         <div style={{ position: 'relative' }}>
-          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+          <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
           <input
             type="text"
             className="form-input"
-            style={{ paddingLeft: 36, paddingRight: 12, paddingTop: 8, paddingBottom: 8, fontSize: 13 }}
-            placeholder="Search title, alias, or URL..."
+            style={{ paddingLeft: 38, paddingRight: searchTerm ? 32 : 12, fontSize: 13 }}
+            placeholder="Search alias, URL, or title..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-dim)',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Status Filter */}
         <div style={{ position: 'relative' }}>
           <select
             className="form-input"
-            style={{ paddingTop: 8, paddingBottom: 8, fontSize: 13, cursor: 'pointer' }}
+            style={{ fontSize: 13, cursor: 'pointer' }}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -187,7 +208,7 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
         <div style={{ position: 'relative' }}>
           <select
             className="form-input"
-            style={{ paddingTop: 8, paddingBottom: 8, fontSize: 13, cursor: 'pointer' }}
+            style={{ fontSize: 13, cursor: 'pointer' }}
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
@@ -201,11 +222,11 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
 
       {/* Tag Filter Pills */}
       {allTags.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
           <button
             onClick={() => setSelectedTag('all')}
             className={`badge ${selectedTag === 'all' ? 'badge-indigo' : 'btn-secondary'}`}
-            style={{ cursor: 'pointer', padding: '5px 12px', border: 'none' }}
+            style={{ cursor: 'pointer', padding: '5px 12px', border: 'none', fontSize: 12 }}
           >
             All Tags
           </button>
@@ -214,7 +235,7 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
               key={tag}
               onClick={() => setSelectedTag(tag)}
               className={`badge ${selectedTag === tag ? 'badge-indigo' : 'btn-secondary'}`}
-              style={{ cursor: 'pointer', padding: '5px 12px', border: 'none' }}
+              style={{ cursor: 'pointer', padding: '5px 12px', border: 'none', fontSize: 12 }}
             >
               #{tag}
             </button>
@@ -226,15 +247,17 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
       {sortedLinks.length === 0 ? (
         <div style={{
           textAlign: 'center',
-          padding: '48px 20px',
+          padding: '50px 20px',
           color: 'var(--text-muted)',
           background: 'rgba(255, 255, 255, 0.02)',
           borderRadius: 'var(--radius-md)',
           border: '1px dashed var(--border-subtle)'
         }}>
-          <AlertTriangle size={36} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
-          <p style={{ fontSize: 15, fontWeight: 500 }}>No shortened links match your filters</p>
-          <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>Try adjusting your search criteria or create a new link above.</p>
+          <AlertTriangle size={36} style={{ opacity: 0.35, margin: '0 auto 12px' }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>No shortened links match your filters</p>
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 4 }}>
+            Try adjusting your search criteria or create a new link above.
+          </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -243,28 +266,28 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
             return (
               <div
                 key={link.id}
+                className="glass-card-interactive"
                 style={{
-                  background: 'rgba(13, 18, 36, 0.7)',
+                  background: 'rgba(11, 17, 32, 0.8)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
-                  padding: '16px 20px',
+                  padding: '18px 22px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
                   gap: 16,
-                  transition: 'border-color 0.2s ease, background 0.2s ease',
-                  opacity: link.is_active && !isExpired ? 1 : 0.65
+                  opacity: link.is_active && !isExpired ? 1 : 0.65,
                 }}
               >
                 {/* Left Info */}
-                <div style={{ flex: '1 1 300px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+                <div style={{ flex: '1 1 320px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
                     <span style={{
                       fontFamily: 'var(--font-heading)',
                       fontWeight: 700,
                       fontSize: 16,
-                      color: '#fff'
+                      color: '#fff',
                     }}>
                       {link.title || link.short_code}
                     </span>
@@ -295,8 +318,9 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
                       fontFamily: 'var(--font-mono)',
                       fontSize: 13,
                       color: 'var(--accent-secondary)',
-                      background: 'rgba(139, 92, 246, 0.1)',
-                      padding: '3px 8px',
+                      background: 'rgba(139, 92, 246, 0.12)',
+                      border: '1px solid rgba(139, 92, 246, 0.25)',
+                      padding: '3px 10px',
                       borderRadius: 6,
                     }}>
                       <span>{link.short_url}</span>
@@ -314,14 +338,14 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
                         display: 'flex',
                         alignItems: 'center',
                         gap: 4,
-                        maxWidth: 280,
+                        maxWidth: 290,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                       title={link.original_url}
                     >
-                      <span>{truncateUrl(link.original_url, 38)}</span>
+                      <span>{truncateUrl(link.original_url, 40)}</span>
                       <ExternalLink size={12} />
                     </a>
                   </div>
@@ -339,16 +363,20 @@ export default function LinkList({ links, onRefresh, onSelectAnalytics, onOpenQR
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-end',
-                    marginRight: 8
+                    marginRight: 6,
+                    padding: '4px 10px',
+                    background: 'rgba(6, 182, 212, 0.08)',
+                    borderRadius: 8,
+                    border: '1px solid rgba(6, 182, 212, 0.2)',
                   }}>
-                    <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 700 }}>
+                    <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--accent-cyan)', fontWeight: 700 }}>
                       Clicks
                     </span>
                     <span style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: 18,
                       fontWeight: 800,
-                      color: 'var(--accent-cyan)'
+                      color: '#fff',
                     }}>
                       {link.clicks_count.toLocaleString()}
                     </span>

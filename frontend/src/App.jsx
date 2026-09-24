@@ -5,7 +5,9 @@ import LinkList from './components/LinkList';
 import AnalyticsView from './components/AnalyticsView';
 import TrafficSim from './components/TrafficSim';
 import QRCodeModal from './components/QRCodeModal';
+import Footer from './components/Footer';
 import { fetchOverview, fetchLinks, fetchLinkAnalytics } from './services/api';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'links' | 'simulator'
@@ -68,6 +70,7 @@ export default function App() {
     try {
       const data = await fetchLinkAnalytics(shortCode);
       setSingleLinkAnalytics(data);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       alert(err.message);
     } finally {
@@ -82,11 +85,10 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Top Navigation */}
+      {/* Top Navigation Bar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        isLive={true}
         onRefresh={() => loadData(true)}
         isRefreshing={isRefreshing}
       />
@@ -96,16 +98,17 @@ export default function App() {
         maxWidth: 1280,
         width: '100%',
         margin: '0 auto',
-        padding: '32px 24px 64px',
+        padding: '36px 24px 64px',
         display: 'flex',
         flexDirection: 'column',
         gap: 32,
+        flex: 1,
       }}>
         {/* Backend Connectivity Alert */}
         {errorMessage && (
-          <div style={{
-            background: 'rgba(244, 63, 94, 0.15)',
-            border: '1px solid rgba(244, 63, 94, 0.4)',
+          <div className="animate-fade-in" style={{
+            background: 'rgba(244, 63, 94, 0.12)',
+            border: '1px solid rgba(244, 63, 94, 0.35)',
             color: '#fb7185',
             padding: '14px 20px',
             borderRadius: 'var(--radius-md)',
@@ -113,14 +116,20 @@ export default function App() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: 16,
+            boxShadow: '0 8px 24px rgba(244, 63, 94, 0.15)',
           }}>
-            <span>⚠️ {errorMessage}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <AlertCircle size={20} />
+              <span>{errorMessage}</span>
+            </div>
             <button
               onClick={() => loadData(true)}
               className="btn btn-secondary btn-sm"
-              style={{ color: '#fff' }}
+              style={{ color: '#fff', borderColor: 'rgba(244, 63, 94, 0.4)' }}
             >
-              Retry Connection
+              <RefreshCw size={14} />
+              <span>Retry Connection</span>
             </button>
           </div>
         )}
@@ -129,30 +138,33 @@ export default function App() {
         <LinkCreator
           onLinkCreated={() => loadData(true)}
           onOpenQR={(link) => setSelectedQRLink(link)}
-          onSelectLinkAnalytics={handleSelectAnalytics}
         />
 
         {/* Dynamic Tab Views */}
         {activeTab === 'analytics' && (
-          <AnalyticsView
-            analyticsData={selectedLinkCode ? singleLinkAnalytics : overviewData}
-            selectedLinkCode={selectedLinkCode}
-            onClearSelectedLink={handleClearSelectedLink}
-            allLinks={links}
-          />
+          <div className="animate-fade-in">
+            <AnalyticsView
+              analyticsData={selectedLinkCode ? singleLinkAnalytics : overviewData}
+              selectedLinkCode={selectedLinkCode}
+              onClearSelectedLink={handleClearSelectedLink}
+              allLinks={links}
+            />
+          </div>
         )}
 
         {activeTab === 'links' && (
-          <LinkList
-            links={links}
-            onRefresh={() => loadData(true)}
-            onSelectAnalytics={handleSelectAnalytics}
-            onOpenQR={(link) => setSelectedQRLink(link)}
-          />
+          <div className="animate-fade-in">
+            <LinkList
+              links={links}
+              onRefresh={() => loadData(true)}
+              onSelectAnalytics={handleSelectAnalytics}
+              onOpenQR={(link) => setSelectedQRLink(link)}
+            />
+          </div>
         )}
 
         {activeTab === 'simulator' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             <TrafficSim
               links={links}
               onTrafficSimulated={() => loadData(true)}
@@ -175,6 +187,9 @@ export default function App() {
           onClose={() => setSelectedQRLink(null)}
         />
       )}
+
+      {/* Modern Footer */}
+      <Footer />
     </div>
   );
 }

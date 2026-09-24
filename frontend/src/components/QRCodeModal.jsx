@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { X, Download, Copy, Check, QrCode, Palette } from 'lucide-react';
+import { X, Download, Copy, Check, QrCode, Palette, Sparkles } from 'lucide-react';
 import { copyTextToClipboard } from '../utils/helpers';
 
 const QR_THEMES = [
@@ -9,6 +9,7 @@ const QR_THEMES = [
   { id: 'emerald', name: 'Emerald', fg: '#047857', bg: '#ffffff' },
   { id: 'amber', name: 'Sunset Amber', fg: '#b45309', bg: '#ffffff' },
   { id: 'rose', name: 'Rose Quartz', fg: '#be123c', bg: '#ffffff' },
+  { id: 'cyan', name: 'Neon Cyan', fg: '#0891b2', bg: '#ffffff' },
 ];
 
 export default function QRCodeModal({ link, onClose }) {
@@ -39,23 +40,25 @@ export default function QRCodeModal({ link, onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
+              width: 38,
+              height: 38,
+              borderRadius: 10,
               background: 'rgba(99, 102, 241, 0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#818cf8'
+              color: '#818cf8',
+              boxShadow: '0 0 15px rgba(99, 102, 241, 0.3)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
             }}>
               <QrCode size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 700 }}>QR Code Studio</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>High-contrast QR code with custom styling</p>
+              <h3 style={{ fontSize: 18, fontWeight: 800 }}>QR Code Studio</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>High-resolution vector-quality QR codes</p>
             </div>
           </div>
           <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ padding: 6 }}>
@@ -64,12 +67,12 @@ export default function QRCodeModal({ link, onClose }) {
         </div>
 
         {/* QR Theme Selector */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
             <Palette size={14} />
             <span>Select Color Palette</span>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {QR_THEMES.map((theme) => (
               <button
                 key={theme.id}
@@ -77,21 +80,22 @@ export default function QRCodeModal({ link, onClose }) {
                 onClick={() => setSelectedTheme(theme)}
                 className="btn btn-sm"
                 style={{
-                  padding: '4px 10px',
+                  padding: '5px 10px',
                   fontSize: 12,
                   background: selectedTheme.id === theme.id ? 'var(--gradient-primary)' : 'rgba(255, 255, 255, 0.05)',
-                  border: selectedTheme.id === theme.id ? '1px solid var(--accent-secondary)' : '1px solid var(--border-subtle)',
+                  border: selectedTheme.id === theme.id ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid var(--border-subtle)',
                   color: selectedTheme.id === theme.id ? '#fff' : 'var(--text-muted)',
+                  boxShadow: selectedTheme.id === theme.id ? '0 2px 10px rgba(99, 102, 241, 0.4)' : 'none',
                 }}
               >
                 <span style={{
                   display: 'inline-block',
-                  width: 10,
-                  height: 10,
+                  width: 9,
+                  height: 9,
                   borderRadius: '50%',
                   background: theme.fg,
                   marginRight: 6,
-                  border: '1px solid rgba(255,255,255,0.4)'
+                  border: '1px solid rgba(255,255,255,0.4)',
                 }} />
                 {theme.name}
               </button>
@@ -102,14 +106,14 @@ export default function QRCodeModal({ link, onClose }) {
         {/* QR Code Canvas */}
         <div style={{
           background: selectedTheme.bg,
-          padding: 24,
-          borderRadius: 16,
+          padding: 22,
+          borderRadius: 18,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          margin: '0 auto 16px',
+          margin: '0 auto 18px',
           width: 'fit-content',
-          boxShadow: '0 12px 35px rgba(0, 0, 0, 0.5)'
+          boxShadow: '0 15px 35px rgba(0, 0, 0, 0.55)',
         }}>
           <QRCodeCanvas
             id="qr-code-canvas"
@@ -127,12 +131,12 @@ export default function QRCodeModal({ link, onClose }) {
           background: 'rgba(255, 255, 255, 0.04)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
-          padding: '10px 14px',
-          marginBottom: 18,
-          textAlign: 'center'
+          padding: '12px 16px',
+          marginBottom: 20,
+          textAlign: 'center',
         }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Destination Target
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+            Destination URL Target
           </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--accent-secondary)', marginTop: 2 }}>
             {link.short_url}

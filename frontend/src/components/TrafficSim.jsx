@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Zap, Play, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Zap, Play, CheckCircle2, RefreshCw, Flame, Sparkles } from 'lucide-react';
 import { simulateTraffic } from '../services/api';
 
 export default function TrafficSim({ links = [], onTrafficSimulated }) {
   const [selectedLink, setSelectedLink] = useState(links[0]?.short_code || '');
-  const [clickCount, setClickCount] = useState(10);
+  const [clickCount, setClickCount] = useState(15);
   const [browser, setBrowser] = useState('');
   const [os, setOs] = useState('');
   const [referrer, setReferrer] = useState('');
@@ -38,25 +38,45 @@ export default function TrafficSim({ links = [], onTrafficSimulated }) {
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '28px 32px' }}>
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div className="glass-panel" style={{
+      padding: '30px 34px',
+      position: 'relative',
+      overflow: 'hidden',
+      border: '1px solid rgba(245, 158, 11, 0.25)',
+      boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.08)',
+    }}>
+      {/* Top amber accent line */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        background: 'linear-gradient(90deg, #f59e0b, #ef4444, #ec4899)',
+      }} />
+
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: 'rgba(245, 158, 11, 0.2)',
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            background: 'rgba(245, 158, 11, 0.18)',
             color: '#fbbf24',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            boxShadow: '0 0 20px rgba(245, 158, 11, 0.35)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
           }}>
-            <Zap size={20} />
+            <Zap size={22} />
           </div>
           <div>
-            <h3 style={{ fontSize: 20, fontWeight: 700 }}>Real-Time Traffic Simulator</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Generate synthetic clicks from diverse browsers, operating systems, and referrers to test live dashboard charts.
+            <h3 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>
+              Real-Time Traffic Simulator
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
+              Generate synthetic clicks from diverse browsers, operating systems, and referrers to test live analytics dashboard telemetry.
             </p>
           </div>
         </div>
@@ -99,7 +119,7 @@ export default function TrafficSim({ links = [], onTrafficSimulated }) {
               <option value="5">5 Clicks</option>
               <option value="15">15 Clicks (Recommended)</option>
               <option value="30">30 Clicks</option>
-              <option value="60">60 Clicks (Heavy Traffic)</option>
+              <option value="60">60 Clicks (Heavy Traffic Burst)</option>
             </select>
           </div>
 
@@ -163,15 +183,16 @@ export default function TrafficSim({ links = [], onTrafficSimulated }) {
             disabled={isSimulating || links.length === 0}
             className="btn btn-primary"
             style={{
-              background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
-              boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
+              boxShadow: '0 4px 18px rgba(245, 158, 11, 0.45)',
+              borderColor: 'rgba(255, 255, 255, 0.2)',
               padding: '12px 28px',
             }}
           >
             {isSimulating ? (
               <>
                 <RefreshCw size={16} className="animate-spin" />
-                <span>Simulating Traffic...</span>
+                <span>Simulating Traffic Velocity...</span>
               </>
             ) : (
               <>
@@ -189,6 +210,10 @@ export default function TrafficSim({ links = [], onTrafficSimulated }) {
               color: '#10b981',
               fontSize: 14,
               fontWeight: 600,
+              background: 'rgba(16, 185, 129, 0.1)',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
             }}>
               <CheckCircle2 size={18} />
               <span>{resultMessage}</span>
