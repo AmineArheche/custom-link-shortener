@@ -64,6 +64,52 @@ export default function AnalyticsView({
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [linkSearchTerm, setLinkSearchTerm] = useState('');
 
+  const {
+    total_clicks = 0,
+    total_links = 0,
+    top_browser = 'N/A',
+    top_os = 'N/A',
+    top_device = 'N/A',
+    top_referrer = 'N/A',
+    clicks_timeline = [],
+    browsers = [],
+    operating_systems = [],
+    device_types = [],
+    top_referrers = [],
+    recent_clicks = [],
+    link = null
+  } = analyticsData || {};
+
+  // Process timeline data according to timeframe selection
+  const timelineLabels = (clicks_timeline || []).map((p) => p.label);
+  const rawTimelineValues = (clicks_timeline || []).map((p) => p.count);
+
+  // Cumulative trajectory
+  const cumulativeTimelineValues = useMemo(() => {
+    let sum = 0;
+    return rawTimelineValues.map((v) => {
+      sum += v;
+      return sum;
+    });
+  }, [rawTimelineValues]);
+
+  // Extract unique locations from recent_clicks
+  const countryCounts = useMemo(() => {
+    const map = {};
+    (recent_clicks || []).forEach((c) => {
+      const country = c.country || 'Global / Unknown';
+      map[country] = (map[country] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: total_clicks > 0 ? Math.round((count / total_clicks) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [recent_clicks, total_clicks]);
+
   if (!analyticsData) {
     return (
       <div className="glass-panel" style={{
@@ -87,35 +133,6 @@ export default function AnalyticsView({
       </div>
     );
   }
-
-  const {
-    total_clicks = 0,
-    total_links = 0,
-    top_browser = 'N/A',
-    top_os = 'N/A',
-    top_device = 'N/A',
-    top_referrer = 'N/A',
-    clicks_timeline = [],
-    browsers = [],
-    operating_systems = [],
-    device_types = [],
-    top_referrers = [],
-    recent_clicks = [],
-    link = null
-  } = analyticsData;
-
-  // Process timeline data according to timeframe selection
-  const timelineLabels = clicks_timeline.map((p) => p.label);
-  const rawTimelineValues = clicks_timeline.map((p) => p.count);
-
-  // Cumulative trajectory
-  const cumulativeTimelineValues = useMemo(() => {
-    let sum = 0;
-    return rawTimelineValues.map((v) => {
-      sum += v;
-      return sum;
-    });
-  }, [rawTimelineValues]);
 
   const activeTimelineValues = chartType === 'cumulative' ? cumulativeTimelineValues : rawTimelineValues;
 
@@ -263,23 +280,6 @@ export default function AnalyticsView({
       },
     },
   };
-
-  // Extract unique locations from recent_clicks
-  const countryCounts = useMemo(() => {
-    const map = {};
-    recent_clicks.forEach((c) => {
-      const country = c.country || 'Global / Unknown';
-      map[country] = (map[country] || 0) + 1;
-    });
-    return Object.entries(map)
-      .map(([name, count]) => ({
-        name,
-        count,
-        percentage: total_clicks > 0 ? Math.round((count / total_clicks) * 100) : 0,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [recent_clicks, total_clicks]);
 
   // Copy Summary Intelligence
   const handleCopySummary = () => {
